@@ -1,45 +1,37 @@
 """
-Endpoints de generación de reportes
+Endpoints de reportes y recomendaciones
 """
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
-from ...services.report_generator import ReportGenerator
+from fastapi import APIRouter, HTTPException, Query
+from typing import Optional
 from ...services.data_analyzer import DataAnalyzer
+from ...services.report_generator import ReportGenerator
+from ...services.professional_recommender import professional_recommender
 from ...utils.data_loader import data_loader
-from ...api.models.schemas import ReportData
+from ...core.config import settings
 
 router = APIRouter()
 
 
-@router.get("/reports/executive", response_model=ReportData)
-async def generate_executive_report():
+@router.get("/reports/executive-summary")
+async def get_executive_summary():
     """
-    Genera reporte ejecutivo completo con hallazgos y recomendaciones
+    Obtiene resumen ejecutivo del análisis
     """
     df = data_loader.load_data()
     
     if df.empty:
-        raise HTTPException(
-            status_code=500,
-            detail="No hay datos suficientes para generar el reporte"
-        )
+        raise HTTPException(status_code=500, detail="No hay datos para generar reporte")
     
-    # Obtener datos necesarios
     analyzer = DataAnalyzer(df)
-    ips_sospechosas = analyzer.get_suspicious_ips()
-    distribucion = analyzer.get_attack_distribution()
+    generator = ReportGenerator(df)
     
-    # Generar reporte
-    report_gen = ReportGenerator(df)
-    report = report_gen.generate_executive_report(ips_sospechosas, distribucion)
-    
-    return report
+    return generator.generate_executive_summary(analyzer)
 
 
 @router.get("/reports/recommendations")
 async def get_recommendations():
     """
-    Obtiene solo las recomendaciones de seguridad
+    Obtiene recomendaciones de seguridad básicas
     """
     df = data_loader.load_data()
     
@@ -47,30 +39,54 @@ async def get_recommendations():
         return []
     
     analyzer = DataAnalyzer(df)
-    ips_sospechosas = analyzer.get_suspicious_ips()
-    distribucion = analyzer.get_attack_distribution()
+    generator = ReportGenerator(df)
     
-    report_gen = ReportGenerator(df)
-    report = report_gen.generate_executive_report(ips_sospechosas, distribucion)
-    
-    return report.recomendaciones
+    return generator.generate_recommendations(analyzer)
 
 
-@router.get("/reports/metrics")
-async def get_key_metrics():
+@router.get("/reports/professional-recommendations")
+async def get_professional_recommendations(
+    dataset_id: Optional[str] = Query(None, description="ID del dataset")
+):
     """
-    Obtiene métricas clave del sistema
+    Obtiene recomendaciones profesionales basadas en frameworks internacionales
+    (NIST, ISO 27001, IEC 62443, CIS Controls)
     """
-    df = data_loader.load_data()
+    df = data_loader.load_data(dataset_id)
     
     if df.empty:
-        return {}
+        return {
+            'total_recommendations': 0,
+            'frameworks_applied': [],
+            'scada_specific': False,
+            'recommendations': []
+        }
     
     analyzer = DataAnalyzer(df)
     ips = analyzer.get_suspicious_ips()
-    distribucion = analyzer.get_attack_distribution()
+    distribution = analyzer.get_attack_distribution()
     
-    report_gen = ReportGenerator(df)
-    report = report_gen.generate_executive_report(ips, distribucion)
+    # Detectar si hay ataques SCADA
+    scada_targeted = any(
+        ip.nivel_riesgo in ['Alto', 'Crítico'] and 
+        any(p in settings.SCADA_CRITICAL_PORTS for p in ip.puertos_afectados)
+        for ip in ips
+    )
     
-    return report.metricas_clave
+    recommendations = professional_recommender.generate_recommendations(
+        ips_sospechosas=ips,
+        attack_distribution=distribution,
+        scada_targeted=scada_targeted
+    )
+    
+    return {
+        'total_recommendations': len(recommendations),
+        'frameworks_applied': [
+            'NIST Cybersecurity Framework',
+            'ISO/IEC 27001:2022',
+            'IEC 62443 (Industrial Security)',
+            'CIS Critical Security Controls'
+        ],
+        'scada_specific': scada_targeted,
+        'recommendations': [r.dict() for r in recommendations]
+    }

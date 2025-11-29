@@ -1,196 +1,242 @@
+/**
+ * Página principal del dashboard
+ */
 import { useState, useEffect } from 'react';
-import { useOutletContext } from 'react-router-dom';
 import { 
+  Activity, 
   Shield, 
   AlertTriangle, 
-  Activity, 
   TrendingUp,
-  Database,
-  Server,
-  Eye
+  Database 
 } from 'lucide-react';
-
 import LoadingSpinner from '../components/common/LoadingSpinner';
-import MetricCard from '../components/cards/MetricCard';
-import SuspiciousIPsTable from '../components/tables/SuspiciousIPsTable';
-import ThreatTimeline from '../components/charts/ThreatTimeline';
-import AttackDistribution from '../components/charts/AttackDistribution';
-import PortHeatmap from '../components/charts/PortHeatmap';
-import IPsSospechosasChart from '../components/charts/IPsSospechosasChart';
-
-import { fetchDashboardStats } from '../services/api';
+import StatCard from '../components/cards/StatCard';
+import IPTable from '../components/tables/IPTable';
+import AttackChart from '../components/charts/AttackChart';
+import { 
+  fetchDashboardStats,
+  fetchSuspiciousIPs,
+  fetchTimeline 
+} from '../services/api';
+import { useDataset } from '../context/DatasetContext';
 
 const Dashboard = () => {
-  const [data, setData] = useState(null);
+  const { activeDatasetId, activeDatasetInfo } = useDataset();
+  const [stats, setStats] = useState(null);
+  const [suspiciousIPs, setSuspiciousIPs] = useState([]);
+  const [timeline, setTimeline] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const { refreshTrigger } = useOutletContext();
 
   useEffect(() => {
     loadData();
-  }, [refreshTrigger]);
+  }, [activeDatasetId]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      setError(null);
-      // Simular delay para mostrar loading states
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const result = await fetchDashboardStats();
-      setData(result);
-    } catch (err) {
-      setError('Error al cargar los datos del dashboard');
-      console.error(err);
+      const [statsData, ipsData, timelineData] = await Promise.all([
+        fetchDashboardStats(10, activeDatasetId),
+        fetchSuspiciousIPs(10, 5, activeDatasetId),
+        fetchTimeline('H', activeDatasetId)
+      ]);
+      
+      setStats(statsData);
+      setSuspiciousIPs(ipsData);
+      setTimeline(timelineData);
+    } catch (error) {
+      console.error('Error cargando dashboard:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading && !data) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="skeleton h-8 w-64 rounded mb-2"></div>
-            <div className="skeleton h-4 w-96 rounded"></div>
-          </div>
-          <div className="skeleton h-6 w-48 rounded"></div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[...Array(4)].map((_, i) => (
-            <MetricCard key={i} loading />
-          ))}
-        </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ThreatTimeline loading />
-          <AttackDistribution loading />
-        </div>
-      </div>
-    );
+  if (loading) {
+    return <LoadingSpinner message="Cargando análisis del dashboard..." />;
   }
 
-  if (error) {
+  if (!stats) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center max-w-md">
-          <AlertTriangle className="mx-auto text-red-600 mb-4" size={48} />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">{error}</h3>
-          <p className="text-gray-600 mb-4">
-            No se pudieron cargar los datos del sistema. Verifica la conexión al servidor.
-          </p>
-          <button onClick={loadData} className="btn-primary">
-            Reintentar Conexión
-          </button>
-        </div>
+      <div className="text-center py-12">
+        <AlertTriangle className="mx-auto text-yellow-500 mb-4" size={64} />
+        <p className="text-gray-600">Error al cargar los datos del dashboard</p>
+        <button 
+          onClick={loadData}
+          className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Reintentar
+        </button>
       </div>
     );
   }
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 bg-gradient-to-r from-gray-900 to-blue-900 bg-clip-text text-transparent">
-            Dashboard IDS - Planta Eólica
-          </h1>
-          <p className="text-gray-600 mt-2 flex items-center gap-2">
-            <Eye size={16} />
-            Monitoreo en tiempo real de sistemas SCADA y control industrial
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-sm text-gray-500">Período analizado</p>
-          <p className="text-sm font-semibold text-gray-700 bg-gray-100 px-3 py-1 rounded-full">
-            {data?.periodo_analizado?.inicio && (
-              <>
-                {new Date(data.periodo_analizado.inicio).toLocaleDateString('es-ES')} - 
-                {new Date(data.periodo_analizado.fin).toLocaleDateString('es-ES')}
-              </>
-            )}
-          </p>
-        </div>
-      </div>
-
-      {/* Métricas principales */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <MetricCard
-          title="Total de Logs Analizados"
-          value={data?.total_logs?.toLocaleString('es-ES') || '0'}
-          icon={Database}
-          color="blue"
-          subtitle="Registros procesados"
-          trend={12}
-        />
-        <MetricCard
-          title="IPs Sospechosas Detectadas"
-          value={data?.ips_sospechosas?.length || '0'}
-          icon={AlertTriangle}
-          color="red"
-          subtitle="Requieren acción inmediata"
-          trend={8}
-        />
-        <MetricCard
-          title="Alertas Activas"
-          value={data?.alert_summary?.alertas_activas || '0'}
-          icon={Activity}
-          color="orange"
-          subtitle={`${data?.alert_summary?.alertas_criticas || 0} críticas`}
-          trend={15}
-        />
-        <MetricCard
-          title="Puertos SCADA Atacados"
-          value={data?.puertos_mas_atacados?.filter(p => p.es_scada_critico).length || '0'}
-          icon={Server}
-          color="purple"
-          subtitle="Sistemas críticos"
-          trend={5}
-        />
-      </div>
-
-      {/* Alerta crítica si hay ataques SCADA */}
-      {data?.alert_summary?.alertas_criticas > 0 && (
-        <div className="alert-critical animate-pulse">
-          <div className="flex items-center gap-4">
-            <Shield className="text-red-600 flex-shrink-0" size={24} />
-            <div className="flex-1">
-              <h4 className="font-bold text-red-900 text-lg">
-                ⚠️ ALERTA CRÍTICA: Ataques a Infraestructura SCADA Detectados
-              </h4>
-              <p className="text-red-700 mt-1">
-                Se han identificado {data.alert_summary.alertas_criticas} intentos de intrusión 
-                contra sistemas críticos de control industrial. Revisión inmediata requerida.
+      {/* Badge de dataset activo */}
+      {activeDatasetInfo && (
+        <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
+          <div className="flex items-center gap-2">
+            <Database className="text-blue-600" size={20} />
+            <div>
+              <p className="text-sm font-semibold text-blue-900">
+                📊 Analizando: {activeDatasetInfo.original_name}
+              </p>
+              <p className="text-xs text-blue-700">
+                {activeDatasetInfo.records.toLocaleString()} registros • Subido el {new Date(activeDatasetInfo.uploaded_at).toLocaleDateString('es-ES')}
               </p>
             </div>
-            <button className="btn-danger whitespace-nowrap">
-              Ver Detalles
-            </button>
           </div>
         </div>
       )}
 
-      {/* Gráficos principales */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ThreatTimeline data={data?.ataques_por_hora ? 
-          Object.entries(data.ataques_por_hora).map(([timestamp, count]) => ({
-            timestamp,
-            count,
-            ataques_detallados: {}
-          })) : []
-        } />
-        <AttackDistribution data={data?.distribucion_ataques} />
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Dashboard Principal</h1>
+        <p className="text-gray-600 mt-2">
+          Vista general de amenazas detectadas en la infraestructura SCADA
+        </p>
       </div>
 
-      {/* Análisis de puertos e IPs */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <PortHeatmap data={data?.puertos_mas_atacados} />
-        <IPsSospechosasChart data={data?.ips_sospechosas} />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title="Total de Alertas"
+          value={stats.total_logs}
+          icon={Activity}
+          color="blue"
+          trend={stats.alert_summary?.tendencia}
+        />
+        <StatCard
+          title="IPs Sospechosas"
+          value={stats.ips_sospechosas?.length || 0}
+          icon={Shield}
+          color="red"
+        />
+        <StatCard
+          title="Alertas Críticas"
+          value={stats.alert_summary?.alertas_criticas || 0}
+          icon={AlertTriangle}
+          color="orange"
+        />
+        <StatCard
+          title="Tipos de Ataque"
+          value={Object.keys(stats.distribucion_ataques || {}).length}
+          icon={TrendingUp}
+          color="purple"
+        />
       </div>
 
-      {/* Tabla de IPs sospechosas */}
-      <SuspiciousIPsTable data={data?.ips_sospechosas} limit={10} />
+      {/* Período Analizado */}
+      <div className="bg-white rounded-lg shadow-md p-4">
+        <h3 className="text-sm font-semibold text-gray-700 mb-2">Período Analizado</h3>
+        <p className="text-xs text-gray-600">
+          <span className="font-mono">
+            {new Date(stats.periodo_analizado.inicio).toLocaleString('es-ES')}
+          </span>
+          {' → '}
+          <span className="font-mono">
+            {new Date(stats.periodo_analizado.fin).toLocaleString('es-ES')}
+          </span>
+        </p>
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Timeline Chart */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">
+            Timeline de Ataques
+          </h2>
+          <AttackChart data={timeline} type="line" />
+        </div>
+
+        {/* Distribución de Ataques */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">
+            Distribución de Ataques
+          </h2>
+          <AttackChart 
+            data={Object.entries(stats.distribucion_ataques || {}).map(([name, value]) => ({
+              name,
+              value
+            }))} 
+            type="bar" 
+          />
+        </div>
+      </div>
+
+      {/* IPs Sospechosas Table */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">
+          IPs Más Sospechosas
+        </h2>
+        <IPTable ips={suspiciousIPs} />
+      </div>
+
+      {/* Puertos Más Atacados */}
+      {stats.puertos_mas_atacados && stats.puertos_mas_atacados.length > 0 && (
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">
+            Puertos Más Atacados
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {stats.puertos_mas_atacados.slice(0, 10).map((port, idx) => (
+              <div
+                key={idx}
+                className={`p-4 rounded-lg border-2 ${
+                  port.es_scada_critico
+                    ? 'bg-red-50 border-red-300'
+                    : 'bg-blue-50 border-blue-300'
+                }`}
+              >
+                <p className="text-2xl font-bold text-gray-900">{port.puerto}</p>
+                <p className="text-xs text-gray-600 mt-1">{port.total_intentos} intentos</p>
+                {port.es_scada_critico && (
+                  <span className="inline-block mt-2 px-2 py-1 bg-red-600 text-white text-xs rounded-full">
+                    SCADA
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Patrones Detectados */}
+      {stats.patrones_detectados && stats.patrones_detectados.length > 0 && (
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">
+            Patrones de Ataque Detectados
+          </h2>
+          <div className="space-y-3">
+            {stats.patrones_detectados.slice(0, 5).map((pattern, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200"
+              >
+                <div className="flex-1">
+                  <p className="font-semibold text-gray-900">{pattern.tipo_ataque}</p>
+                  <p className="text-sm text-gray-600">
+                    {pattern.frecuencia} ataques ({pattern.porcentaje.toFixed(1)}%)
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      pattern.severidad === 'Crítico'
+                        ? 'bg-red-100 text-red-800'
+                        : pattern.severidad === 'Alto'
+                        ? 'bg-orange-100 text-orange-800'
+                        : 'bg-yellow-100 text-yellow-800'
+                    }`}
+                  >
+                    {pattern.severidad}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

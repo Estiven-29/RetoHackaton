@@ -1,130 +1,121 @@
 """
-Endpoints de análisis de datos
+Endpoints de análisis de datos IDS
 """
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 from ...services.data_analyzer import DataAnalyzer
 from ...services.threat_detector import ThreatDetector
 from ...utils.data_loader import data_loader
-from ...api.models.schemas import AnalysisResult, SuspiciousIP
-from typing import List
 
 router = APIRouter()
 
 
-@router.get("/analysis/dashboard-stats", response_model=AnalysisResult)
+@router.get("/analysis/dashboard-stats")
 async def get_dashboard_stats(
-    ip_threshold: Optional[int] = Query(None, description="Umbral mínimo de ataques para IP sospechosa")
+    ip_threshold: int = Query(10, description="Umbral mínimo de ataques"),
+    dataset_id: Optional[str] = Query(None, description="ID del dataset a analizar")  # ← NUEVO
 ):
     """
-    Obtiene estadísticas completas para el dashboard principal
-    
-    - **ip_threshold**: Umbral personalizado para detección de IPs sospechosas
+    Obtiene estadísticas completas para el dashboard
     """
-    df = data_loader.load_data()
+    df = data_loader.load_data(dataset_id)  # ← MODIFICADO
     
     if df.empty:
-        raise HTTPException(
-            status_code=500, 
-            detail="No se pudieron cargar los datos del sistema IDS"
-        )
+        raise HTTPException(status_code=500, detail="No hay datos para analizar")
     
-    # Inicializar analizadores
     analyzer = DataAnalyzer(df)
-    threat_detector = ThreatDetector(df)
+    detector = ThreatDetector(df)
     
     # Obtener análisis
-    ips_sospechosas = analyzer.get_suspicious_ips(threshold=ip_threshold)
+    ips = analyzer.get_suspicious_ips(ip_threshold)
     distribucion = analyzer.get_attack_distribution()
     timeline = analyzer.get_timeline_data()
     puertos = analyzer.get_port_analysis()
     patrones = analyzer.get_attack_patterns()
-    alert_summary = threat_detector.get_alert_summary()
+    alert_summary = detector.get_alert_summary()
     
-    # Convertir timeline a dict
-    timeline_dict = {item.timestamp: item.count for item in timeline}
-    
-    # Obtener rango de fechas
-    fecha_inicio, fecha_fin = data_loader.get_date_range()
-    
-    return AnalysisResult(
-        total_logs=len(df),
-        periodo_analizado={
-            'inicio': fecha_inicio.strftime('%Y-%m-%d %H:%M:%S') if fecha_inicio else '',
-            'fin': fecha_fin.strftime('%Y-%m-%d %H:%M:%S') if fecha_fin else ''
+    return {
+        'dataset_id': dataset_id or 'default',  # ← NUEVO
+        'total_logs': len(df),
+        'periodo_analizado': {
+            'inicio': df['timestamp'].min().isoformat(),
+            'fin': df['timestamp'].max().isoformat()
         },
-        ips_sospechosas=ips_sospechosas,
-        distribucion_ataques=distribucion,
-        ataques_por_hora=timeline_dict,
-        puertos_mas_atacados=puertos,
-        patrones_detectados=patrones,
-        alert_summary=alert_summary
-    )
+        'ips_sospechosas': [ip.dict() for ip in ips],
+        'distribucion_ataques': distribucion,
+        'ataques_por_hora': {
+            item.timestamp: item.count 
+            for item in timeline
+        },
+        'puertos_mas_atacados': [p.dict() for p in puertos],
+        'patrones_detectados': [p.dict() for p in patrones],
+        'alert_summary': alert_summary.dict()
+    }
 
 
-@router.get("/analysis/suspicious-ips", response_model=List[SuspiciousIP])
+@router.get("/analysis/suspicious-ips")
 async def get_suspicious_ips(
-    limit: int = Query(10, description="Número máximo de IPs a retornar"),
-    min_attacks: int = Query(5, description="Mínimo de ataques para considerar")
+    limit: int = Query(10, ge=1, le=100),
+    min_attacks: int = Query(5, ge=1),
+    dataset_id: Optional[str] = Query(None, description="ID del dataset")  # ← NUEVO
 ):
-    """
-    Obtiene lista detallada de IPs sospechosas
-    
-    - **limit**: Número máximo de resultados
-    - **min_attacks**: Umbral mínimo de ataques
-    """
-    df = data_loader.load_data()
+    """Obtiene lista de IPs sospechosas"""
+    df = data_loader.load_data(dataset_id)  # ← MODIFICADO
     
     if df.empty:
         return []
     
     analyzer = DataAnalyzer(df)
-    ips = analyzer.get_suspicious_ips(threshold=min_attacks)
+    ips = analyzer.get_suspicious_ips(min_attacks)
     
-    return ips[:limit]
+    return [ip.dict() for ip in ips[:limit]]
 
 
 @router.get("/analysis/timeline")
-async def get_attack_timeline(interval: str = Query('H', regex='^(H|D)$')):
-    """
-    Obtiene timeline de ataques
-    
-    - **interval**: Intervalo de agrupación ('H' para hora, 'D' para día)
-    """
-    df = data_loader.load_data()
+async def get_timeline(
+    interval: str = Query('H', regex='^(H|D)$'),
+    dataset_id: Optional[str] = Query(None, description="ID del dataset")  # ← NUEVO
+):
+    """Obtiene timeline de ataques"""
+    df = data_loader.load_data(dataset_id)  # ← MODIFICADO
     
     if df.empty:
         return []
     
     analyzer = DataAnalyzer(df)
-    return analyzer.get_timeline_data(interval=interval)
+    timeline = analyzer.get_timeline_data(interval)
+    
+    return [item.dict() for item in timeline]
 
 
 @router.get("/analysis/ports")
-async def get_port_analysis(top_n: int = Query(15, ge=1, le=50)):
-    """
-    Analiza los puertos más atacados
-    
-    - **top_n**: Número de puertos a analizar (1-50)
-    """
-    df = data_loader.load_data()
+async def get_port_analysis(
+    top_n: int = Query(15, ge=1, le=50),
+    dataset_id: Optional[str] = Query(None, description="ID del dataset")  # ← NUEVO
+):
+    """Análisis de puertos más atacados"""
+    df = data_loader.load_data(dataset_id)  # ← MODIFICADO
     
     if df.empty:
         return []
     
     analyzer = DataAnalyzer(df)
-    return analyzer.get_port_analysis(top_n=top_n)
+    ports = analyzer.get_port_analysis(top_n)
+    
+    return [p.dict() for p in ports]
 
 
 @router.get("/analysis/patterns")
-async def get_attack_patterns():
-    """
-    Detecta y retorna patrones de ataque identificados
-    """
-    df = data_loader.load_data()
+async def get_attack_patterns(
+    dataset_id: Optional[str] = Query(None, description="ID del dataset")  # ← NUEVO
+):
+    """Obtiene patrones de ataque identificados"""
+    df = data_loader.load_data(dataset_id)  # ← MODIFICADO
     
     if df.empty:
         return []
     
     analyzer = DataAnalyzer(df)
-    return analyzer.get_attack_patterns()
+    patterns = analyzer.get_attack_patterns()
+    
+    return [p.dict() for p in patterns]
