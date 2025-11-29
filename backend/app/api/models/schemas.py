@@ -3,7 +3,7 @@ Schemas Pydantic para validación de datos
 """
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any  # ← AGREGADO Any aquí
 from enum import Enum
 
 
@@ -135,4 +135,4 @@ class ReportData(BaseModel):
     hallazgos_principales: List[str]
     ips_bloqueadas_sugeridas: List[SuspiciousIP]
     recomendaciones: List[Recommendation]
-    metricas_clave: Dict[str, any]
+    metricas_clave: Dict[str, Any]  # ← CAMBIADO de 'any' a 'Any'
