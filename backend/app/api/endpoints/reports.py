@@ -69,7 +69,6 @@ async def get_key_metrics():
     analyzer = DataAnalyzer(df)
     ips = analyzer.get_suspicious_ips()
     distribucion = analyzer.get_attack_distribution()
-    
     report_gen = ReportGenerator(df)
     report = report_gen.generate_executive_report(ips, distribucion)
     
