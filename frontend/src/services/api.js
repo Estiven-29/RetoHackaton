@@ -284,12 +284,16 @@ export const fetchQuickActions = async () => {
 
 // ==================== NETWORK GRAPH ENDPOINTS ====================
 
+// ==================== NETWORK GRAPH ENDPOINTS ====================
+
 export const fetchAttackNetworkGraph = async () => {
   try {
+    console.log('📡 API Request: GET /api/v1/graph/attack-network');
     const response = await apiClient.get('/api/v1/graph/attack-network');
+    console.log(' API Response: /api/v1/graph/attack-network', response.status);
     return response.data;
   } catch (error) {
-    console.error('Error fetching attack network graph:', error);
+    console.error(' Error fetching attack network graph:', error);
     throw error;
   }
 };

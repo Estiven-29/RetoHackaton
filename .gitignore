@@ -12,3 +12,14 @@ dist/
 # IDE
 .vscode/
 .idea/
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+# virtual envs
+venv/
+.venv/
+.env
+# distribution
+dist/

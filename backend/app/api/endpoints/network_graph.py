@@ -93,7 +93,7 @@ async def get_attack_hotspots():
             'ip': row['ip'],
             'total_attacks': int(row['total_attacks']),
             'unique_attackers': int(row['unique_attackers']),
-            'ports_targeted': row['ports_targeted'][:10],
+            'ports_targeted': [int(p) for p in row['ports_targeted'][:10]],
             'severity': 'Crítico' if row['unique_attackers'] > 3 else 'Alto' if row['unique_attackers'] > 1 else 'Medio'
         })
     
