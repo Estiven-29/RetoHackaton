@@ -16,3 +16,7 @@ dist/
 backend/venv/
 __pycache__/
 *.py[cod]
+# Python artifacts
+backend/venv/
+__pycache__/
+*.py[cod]
