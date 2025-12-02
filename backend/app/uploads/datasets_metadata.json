@@ -1,0 +1,67 @@
+[
+  {
+    "id": "dataset_20251129_140206_cbs_6_dataset_1_ids",
+    "filename": "dataset_20251129_140206_cbs_6_dataset_1_ids.csv",
+    "original_name": "cbs_6_dataset_1_ids.csv",
+    "description": "",
+    "uploaded_at": "2025-11-29T14:02:06.605768",
+    "records": 100,
+    "date_range": {
+      "start": "2025-07-01T00:00:00",
+      "end": "2025-07-05T03:00:00"
+    },
+    "unique_ips_origen": 3,
+    "unique_ips_destino": 3,
+    "attack_types": {
+      "Brute force SSH": 37,
+      "Port scan": 34,
+      "SQL Injection": 29
+    },
+    "status": "active"
+  },
+  {
+    "id": "dataset_20251129_152021_dataset",
+    "filename": "dataset_20251129_152021_dataset.csv",
+    "original_name": "dataset.csv",
+    "description": "",
+    "uploaded_at": "2025-11-29T15:20:21.961978",
+    "records": 297,
+    "date_range": {
+      "start": "2025-11-20T00:15:23",
+      "end": "2025-11-29T14:42:29"
+    },
+    "unique_ips_origen": 6,
+    "unique_ips_destino": 8,
+    "attack_types": {
+      "Port scan": 94,
+      "SQL Injection": 59,
+      "Modbus exploitation": 40,
+      "Brute force SSH": 40,
+      "Malware": 20,
+      "S7comm attack": 20,
+      "Unauthorized access": 19,
+      "DDoS": 5
+    },
+    "status": "active"
+  },
+  {
+    "id": "dataset_20251129_165227_cbs_6_dataset_1_ids",
+    "filename": "dataset_20251129_165227_cbs_6_dataset_1_ids.csv",
+    "original_name": "cbs_6_dataset_1_ids.csv",
+    "description": "",
+    "uploaded_at": "2025-11-29T16:52:27.520481",
+    "records": 100,
+    "date_range": {
+      "start": "2025-07-01T00:00:00",
+      "end": "2025-07-05T03:00:00"
+    },
+    "unique_ips_origen": 3,
+    "unique_ips_destino": 3,
+    "attack_types": {
+      "Brute force SSH": 37,
+      "Port scan": 34,
+      "SQL Injection": 29
+    },
+    "status": "active"
+  }
+]
