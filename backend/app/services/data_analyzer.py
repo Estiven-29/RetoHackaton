@@ -94,12 +94,12 @@ class DataAnalyzer:
         """
         return self.df['alerta'].value_counts().to_dict()
     
-    def get_timeline_data(self, interval: str = 'H') -> List[TimelineData]:
+    def get_timeline_data(self, interval: str = 'h') -> List[TimelineData]:
         """
         Genera datos de timeline de ataques
-        
+
         Args:
-            interval: Intervalo de agrupación ('H' hora, 'D' día)
+            interval: Intervalo de agrupación ('h' hora, 'D' día)
             
         Returns:
             Lista de datos para timeline

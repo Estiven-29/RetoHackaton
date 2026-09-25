@@ -65,7 +65,7 @@ class ThreatDetector:
             return []
         
         # Agrupar por IP destino y ventana temporal de 1 hora
-        self.df['hour_window'] = self.df['timestamp'].dt.floor('H')
+        self.df['hour_window'] = self.df['timestamp'].dt.floor('h')
         
         coordinated = []
         for (target_ip, hour), group in self.df.groupby(['ip_destino', 'hour_window']):
@@ -119,7 +119,7 @@ class ThreatDetector:
         if self.df.empty or len(self.df) < 2:
             return {'avg_per_hour': 0, 'max_per_hour': 0, 'min_per_hour': 0}
         
-        hourly = self.df.groupby(self.df['timestamp'].dt.floor('H')).size()
+        hourly = self.df.groupby(self.df['timestamp'].dt.floor('h')).size()
         
         return {
             'avg_per_hour': round(hourly.mean(), 2),

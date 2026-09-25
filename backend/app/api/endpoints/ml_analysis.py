@@ -85,5 +85,5 @@ async def analyze_ip_behavior(ip: str):
             'mean_hour': round(float(ip_features['mean']), 2) if 'mean' in ip_features else None,
             'consistency': 'Alta' if ip_features.get('std', 100) < 3 else 'Media' if ip_features.get('std', 100) < 6 else 'Baja'
         },
-        'timeline': ip_data.groupby(ip_data['timestamp'].dt.floor('H')).size().to_dict()
+        'timeline': ip_data.groupby(ip_data['timestamp'].dt.floor('h')).size().to_dict()
     }

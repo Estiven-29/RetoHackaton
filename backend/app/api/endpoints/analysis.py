@@ -73,17 +73,17 @@ async def get_suspicious_ips(
 
 @router.get("/analysis/timeline")
 async def get_timeline(
-    interval: str = Query('H', regex='^(H|D)$'),
+    interval: str = Query('h', pattern='^(?i)(h|d)$'),
     dataset_id: Optional[str] = Query(None, description="ID del dataset")  # ← NUEVO
 ):
     """Obtiene timeline de ataques"""
     df = data_loader.load_data(dataset_id)  # ← MODIFICADO
-    
+
     if df.empty:
         return []
-    
+
     analyzer = DataAnalyzer(df)
-    timeline = analyzer.get_timeline_data(interval)
+    timeline = analyzer.get_timeline_data(interval.lower())
     
     return [item.dict() for item in timeline]
 
